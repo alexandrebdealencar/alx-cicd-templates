@@ -13,7 +13,7 @@ parameters:
     default: Function Deploy
   - name: javaVersion
     type: string
-    default: 21
+    default: 17
   - name: serviceConnection
     type: string
   - name: azureSubscription
@@ -39,7 +39,7 @@ jobs:
           jdkSourceOption: "PreInstalled"
       - task: FuncToolsInstaller@0
         inputs:
-          version: latest
+          version: 4.4.0
       - task: AzureCLI@2
         displayName: Azure Function Deploy
         inputs:

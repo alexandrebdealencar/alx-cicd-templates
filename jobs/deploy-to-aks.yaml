@@ -1,0 +1,111 @@
+parameters:
+  - name: deployJobName
+    type: string
+    default: deploy
+  - name: deployDependsOn
+    type: object
+    default: []
+  - name: deployCondition
+    type: string
+    default: "succeeded()"
+  - name: deployEnvironment
+    type: string
+  - name: deployNamespace
+    type: string
+  - name: deployAppName
+    type: string
+  - name: deployArtifactName
+    type: string
+    default: "kubernetes"
+  - name: deployArtifactsPath
+    type: string
+    default: "$(Pipeline.Workspace)"
+  - name: deployRolloutTimeout
+    type: number
+    default: 360
+  - name: deploySecretsFilter
+    type: string
+    default: "*"
+  - name: deployAzureServiceConnection
+    type: string
+    default: ''
+  - name: deployKeyVaultResourceGroup
+    type: string
+    default: ''
+  - name: deployKeyVaultName
+    type: string
+    default: ''
+  - name: deployAppKind
+    type: string
+    default: 'deployment'
+
+jobs:
+  - deployment: ${{ parameters.deployJobName }}
+    dependsOn: ${{ parameters.deployDependsOn }}
+    condition: ${{ parameters.deployCondition }}
+    environment: ${{ parameters.deployEnvironment }}.${{ parameters.deployNamespace }}
+    displayName: "Deploy to Environment"
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - ${{ if ne(parameters.deployKeyVaultName, '') }}:
+              - ${{ if ne(parameters.deployKeyVaultResourceGroup, '') }}:
+                - template: "../tasks/az-keyvault-network-rule.yaml"
+                  parameters:
+                    action: add
+                    azureServiceConnection: ${{ parameters.deployAzureServiceConnection }}
+                    keyVaultName: ${{ parameters.deployKeyVaultName }}
+                    keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
+
+              - task: AzureKeyVault@2
+                displayName: "Getting Variables from Keyvault"
+                inputs:
+                  connectedServiceName: ${{ parameters.deployAzureServiceConnection }}
+                  keyVaultName: ${{ parameters.deployKeyVaultName }}
+                  secretsFilter: ${{ parameters.deploySecretsFilter }}
+
+              - ${{ if ne(parameters.deployKeyVaultResourceGroup, '') }}:
+                - template: "../tasks/az-keyvault-network-rule.yaml"
+                  parameters:
+                    action: remove
+                    azureServiceConnection: ${{ parameters.deployAzureServiceConnection }}
+                    keyVaultName: ${{ parameters.deployKeyVaultName }}
+                    keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
+
+            - task: DownloadBuildArtifacts@1
+              displayName: "Download Build Artifacts"
+              inputs:
+                downloadType: specific
+                itemPattern: ${{ parameters.deployArtifactName }}/**
+                downloadPath: ${{ parameters.deployArtifactsPath }}
+
+            - task: replacetokens@5
+              displayName: "Replace Values"
+              inputs:
+                rootDirectory: "${{ parameters.deployArtifactsPath }}/${{ parameters.deployArtifactName }}"
+                targetFiles: "*.yaml"
+                actionOnMissing: continue
+                keepToken: true
+
+            - task: Kubernetes@1
+              displayName: "Deploy to Kubernetes Cluster"
+              inputs:
+                command: "apply"
+                arguments: '-f "${{ parameters.deployArtifactsPath }}/${{ parameters.deployArtifactName }}"'
+
+            - ${{ if ne(parameters.deployAppKind, 'cronjob') }}:
+              - template: "../tasks/rollout-status.yaml"
+                parameters:
+                  Namespace: ${{ parameters.deployNamespace }}
+                  AppName: ${{ parameters.deployAppName }}
+                  AppKind: ${{ parameters.deployAppKind }}
+                  RolloutTimeout: ${{ parameters.deployRolloutTimeout }}
+
+            - ${{ if ne(parameters.deployAppKind, 'cronjob') }}:
+              - template: "../tasks/rollout-revert.yaml"
+                parameters:
+                  Namespace: ${{ parameters.deployNamespace }}
+                  AppName: ${{ parameters.deployAppName }}
+                  AppKind: ${{ parameters.deployAppKind }}
+                  

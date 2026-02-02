@@ -1,0 +1,31 @@
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: enabled
+    type: boolean
+    default: true
+  - name: minimumSeverity
+    type: string
+    default: low
+  - name: excludeIDs
+    type: string
+    default: ''
+
+steps:
+  - script: |
+      curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+      tfsec --version
+    displayName: "TFsec Install"
+    enabled: ${{ parameters.enabled }}
+  
+  - script: |
+      tfsec . \
+        --include-passed \
+        --include-ignored \
+        -m ${{ parameters.minimumSeverity }} \
+        -e ${{ parameters.excludeIDs }} \
+        --no-code \
+        --concise-output
+    displayName: "Terraform SAST (tfsec)"
+    enabled: ${{ parameters.enabled }}
+    workingDirectory: ${{ parameters.workingDirectory }}

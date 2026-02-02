@@ -1,0 +1,27 @@
+parameters:
+  - name: gradleTask
+    type: string
+  - name: gradleWrapperFile
+    type: string
+    default: "gradlew"
+  - name: continueOnError
+    type: boolean
+    default: true
+  - name: envs
+    type: object
+    default: []
+  - name: jdkVersionOption
+    type: string
+    default: 1.17
+
+steps:
+  - task: Gradle@3
+    displayName: "Run ${{ parameters.gradleTask }}"
+    continueOnError: ${{ parameters.continueOnError }}
+    inputs:
+      gradleWrapperFile: ${{ parameters.gradleWrapperFile }}
+      tasks: ${{ parameters.gradleTask }}
+      jdkVersionOption: ${{ parameters.jdkVersionOption }}
+    env:
+      ${{ each env in parameters.envs }}:
+        ${{ env.key }}: ${{ env.value }}

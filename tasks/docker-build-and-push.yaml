@@ -1,0 +1,35 @@
+parameters:
+  - name: appName
+    type: string
+  - name: dockerFile
+    type: string
+    default: "./Dockerfile"
+  - name: arguments
+    type: string
+    default: ''
+  - name: tags
+    type: string
+    default: |
+      $(Build.SourceBranchName)
+      latest
+
+steps:
+  - task: Docker@2
+    displayName: "Build Container Image"
+    env:
+      DOCKER_BUILDKIT: "1"
+    inputs:
+      command: build
+      Dockerfile: ${{ parameters.dockerFile }}
+      repository: ${{ parameters.appName }}
+      tags: ${{ parameters.tags }}
+      arguments: ${{ parameters.arguments }}
+
+  - task: Docker@2
+    displayName: "Push Container Image"
+    env:
+      DOCKER_BUILDKIT: "1"
+    inputs:
+      command: push
+      repository: ${{ parameters.appName }}
+      tags: ${{ parameters.tags }}

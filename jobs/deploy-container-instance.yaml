@@ -1,0 +1,45 @@
+parameters:
+  - name: containerInstanceDependsOn
+    type: object
+    default: []
+  - name: azureServiceConnection
+    type: string
+  - name: resourceGroup
+    type: string
+  - name: appName
+    type: string
+  - name: containerRegistry
+    type: string
+  - name: imageTag
+    type: string
+  - name: containerPort
+    type: number
+    default: 3002
+  - name: containerRegistryPassword
+    type: string
+
+jobs:
+  - job: deploy_container
+    dependsOn: ${{ parameters.containerInstanceDependsOn }}
+    displayName: Deploy Container Instance
+    steps:
+      - task: AzureCLI@2
+        displayName: Container Instance Deploy
+        inputs:
+          azureSubscription: ${{ parameters.azureServiceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            az container create --resource-group ${{ parameters.resourceGroup }} \
+            --name ${{ parameters.appName }} \
+            --image ${{ parameters.containerRegistry }}.azurecr.io/${{ parameters.appName }}:${{ parameters.imageTag }} \
+            --os-type Linux \
+            --cpu 1 \
+            --memory 1.5 \
+            --restart-policy Never \
+            --ports ${{ parameters.containerPort }} \
+            --ip-address Public \
+            --dns-name-label ${{ parameters.appName }} \
+            --registry-login-server ${{ parameters.containerRegistry }}.azurecr.io \
+            --registry-username ${{ parameters.containerRegistry }} \
+            --registry-password "${{ parameters.containerRegistryPassword }}"

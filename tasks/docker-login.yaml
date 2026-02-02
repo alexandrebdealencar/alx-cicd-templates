@@ -1,0 +1,14 @@
+parameters:
+  - name: enabled
+    type: string
+    default: true
+  - name: containerRegistry
+    type: string
+
+steps:
+  - task: Docker@2
+    enabled: ${{ parameters.enabled }}
+    displayName: "Log in to Container Registry"
+    inputs:
+      command: login
+      containerRegistry: ${{ parameters.containerRegistry }}

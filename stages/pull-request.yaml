@@ -1,0 +1,29 @@
+parameters:
+  name: appName
+  type: string
+
+stages:
+  - stage: pull_request
+    displayName: "Pull Request Analysis"
+    jobs:
+      - template: ../jobs/gradle-test.yaml
+        parameters:
+          jobName: checkStyle
+          gradleTasks: checkstyleMain
+          testName: "CheckStyle"
+      
+      - template: ../jobs/gradle-test.yaml
+        parameters:
+          jobName: pmd
+          gradleTasks: pmdMain
+          testName: "PMD"
+      
+      - template: ../jobs/gradle-test.yaml
+        parameters:
+          jobName: spotBugs
+          gradleTasks: spotbugsMain
+          testName: "SpotBugs"
+
+      - template: ../jobs/gradle-unit-tests.yaml
+        parameters:
+          appName: ${{ parameters.appName }}

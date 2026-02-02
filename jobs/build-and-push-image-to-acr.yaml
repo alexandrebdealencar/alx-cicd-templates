@@ -1,0 +1,73 @@
+parameters:
+  - name: buildJobName
+    type: string
+    default: "build"
+  - name: buildDependsOn
+    type: object
+    default: []
+  - name: buildCondition
+    type: string
+    default: "succeeded()"
+  - name: buildAppName
+    type: string
+  - name: buildContainerRegistry
+    type: string
+  - name: buildAcrOriginName
+    type: string
+  - name: buildDockerArgs
+    type: string
+    default: ''
+  - name: buildArtifactName
+    type: string
+    default: "kubernetes"
+  - name: buildManifestToPublish
+    type: string
+    default: ''
+  - name: buildDockerFile
+    type: string
+    default: "./Dockerfile"
+  - name: buildTags
+    type: string
+    default: $(Build.SourceBranchName)-$(Build.BuildId)
+  - name: buildPublishLocation
+    type: string
+    default: "Container"
+  - name: buildAzureSubscriptionOrigin
+    type: string
+    default: ''
+  - name: buildAcrDestinations
+    type: object
+    default: []
+
+jobs:
+  - job: ${{ parameters.buildJobName }}
+    dependsOn: ${{ parameters.buildDependsOn }}
+    condition: ${{ parameters.buildCondition }}
+    displayName: "Build Docker Image"
+    steps:
+      - template: "../tasks/docker-login.yaml"
+        parameters:
+          containerRegistry: ${{ parameters.buildContainerRegistry }}
+
+      - template: "../tasks/docker-build-and-push.yaml"
+        parameters:
+          appName: ${{ parameters.buildAppName }}
+          dockerFile: ${{ parameters.buildDockerFile }}
+          arguments: ${{ parameters.buildDockerArgs }}
+          tags: ${{ parameters.buildTags }}
+
+      - ${{ if gt(length(parameters.buildAcrDestinations), 0) }}:
+        - template: "../tasks/acr-import.yaml"
+          parameters:
+            acrOriginName: ${{ parameters.buildAcrOriginName }}
+            imageName: ${{ parameters.buildAppName }}:${{ parameters.buildTags }}
+            azureSubscriptionOrigin: ${{ parameters.buildAzureSubscriptionOrigin }} 
+            acrDestinations: ${{ parameters.buildAcrDestinations }}
+      
+      - ${{ if ne(parameters.buildManifestToPublish, '') }}:
+        - task: PublishBuildArtifacts@1
+          displayName: "Publish Build Artifact"
+          inputs:
+            PathtoPublish: ${{ parameters.buildManifestToPublish }}
+            ArtifactName: ${{ parameters.buildArtifactName }}
+            publishLocation: ${{ parameters.buildPublishLocation }}

@@ -1,0 +1,8 @@
+parameters:
+  - name: workingDirectory
+    type: string
+
+steps:
+  - script: terraform fmt --recursive
+    displayName: Terraform Format
+    workingDirectory: ${{ parameters.workingDirectory }}

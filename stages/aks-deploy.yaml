@@ -1,0 +1,114 @@
+parameters:
+  - name: stageName
+    type: string
+  - name: dependsOn
+    type: object
+    default: []
+  - name: condition
+    type: string
+    default: "succeeded()"
+  - name: displayName
+    type: string
+  - name: containerRegistry
+    type: string
+  - name: appName
+    type: string
+  - name: manifestToPublish
+    type: string
+  - name: namespace
+    type: string
+  - name: keyVaultName
+    type: string
+    default: ''
+  - name: environment
+    type: string
+  - name: dockerArgs
+    type: string
+    default: ''
+  - name: dockerFile
+    type: string
+    default: "./Dockerfile"
+  - name: imageScan
+    type: boolean
+    default: false
+  - name: scanIgnoreUnfixed
+    type: boolean
+    default: true
+  - name: scanVulnType
+    type: string
+    default: "os"
+  - name: tag
+    type: string
+    default: $(Build.SourceBranchName)-$(Build.BuildId)
+  - name: scanSeverity
+    type: string
+    default: HIGH,CRITICAL
+  - name: azureServiceConnection
+    type: string
+    default: ''
+  - name: keyVaultResourceGroup
+    type: string
+    default: ''
+  - name: artifactName
+    type: string
+    default: kubernetes
+  - name: trivyVersion
+    type: string
+    default: "0.46.0"
+  - name: scanContinueOnError
+    type: boolean
+    default: false
+  - name: deployRolloutTimeout
+    type: number
+    default: 300
+  - name: deploySecretsFilter
+    type: string
+    default: "*"
+  - name: scanDBRepository
+    type: string
+    default: "ghcr.io/aquasecurity/trivy-db"
+  
+
+stages:
+  - stage: ${{ parameters.stageName }}
+    dependsOn: ${{ parameters.dependsOn }}
+    condition: ${{ parameters.condition }}
+    displayName: ${{ parameters.displayName }}
+    jobs:
+      - template: "../jobs/build-and-push-image-to-acr.yaml"
+        parameters:
+          buildAppName: ${{ parameters.appName }}
+          buildContainerRegistry: ${{ parameters.containerRegistry }}
+          buildDockerArgs: ${{ parameters.dockerArgs }}
+          buildDockerFile: ${{ parameters.dockerFile }}
+          buildTags: ${{ parameters.tag }}
+          buildArtifactName: ${{ parameters.artifactName }}
+          buildManifestToPublish: ${{ parameters.manifestToPublish }}
+
+      - ${{ if eq(parameters.imageScan, true) }}:
+        - template: "../jobs/trivy-scan.yaml"
+          parameters:
+            scanDependsOn: build
+            scanTrivyVersion: ${{ parameters.trivyVersion }}
+            scanContinueOnError: ${{ parameters.scanContinueOnError }}
+            scanContainerRegistry: ${{ parameters.containerRegistry }}
+            scanRepository: ${{ parameters.containerRegistry }}.azurecr.io
+            scanImage: ${{ parameters.appName }}
+            scanTag: ${{ parameters.tag }}
+            scanSeverity: ${{ parameters.scanSeverity }}
+            scanIgnoreUnfixed: ${{ parameters.scanIgnoreUnfixed }}
+            scanVulnType: ${{ parameters.scanVulnType }}
+            scanDBRepository: ${{ parameters.scanDBRepository }}
+
+      - template: "../jobs/deploy-to-aks.yaml"
+        parameters:
+          deployDependsOn: build
+          deployEnvironment: ${{ parameters.environment }}
+          deployNamespace: ${{ parameters.namespace }}
+          deployAppName: ${{ parameters.appName }}
+          deployArtifactName: ${{ parameters.artifactName }}
+          deployRolloutTimeout: ${{ parameters.deployRolloutTimeout }}
+          deploySecretsFilter: ${{ parameters.deploySecretsFilter }}
+          deployKeyVaultName: ${{ parameters.keyVaultName }}
+          deployKeyVaultResourceGroup: ${{ parameters.keyVaultResourceGroup }}
+          deployAzureServiceConnection: ${{ parameters.azureServiceConnection }}

@@ -1,0 +1,144 @@
+parameters:
+  - name: envToDeploy
+    type: string
+  - name: dependsOn
+    type: object
+    default: []
+  - name: condition
+    type: string
+    default: "succeeded()"
+  - name: checkouts
+    type: object
+    default: []
+  - name: terraformVersion
+    type: string
+    default: latest
+  - name: runTests
+    type: boolean
+    default: false
+  - name: terraformStateServiceConnection
+    type: string
+  - name: environmentServiceNameAzureRM
+    type: string
+  - name: backendAzureRmResourceGroupName
+    type: string
+  - name: backendAzureRmStorageAccountName
+    type: string
+  - name: backendAzureRmContainerName
+    type: string
+  - name: backendAzureRmKey
+    type: string
+  - name: workingDirectory
+    type: string
+  - name: terraformEnv
+    type: object
+    default: []
+  - name: manualApproval
+    type: boolean
+    default: false
+  - name: approvalTimeout
+    type: number
+    default: 1440
+  - name: tfsecMinimumSeverity
+    type: string
+    default: low
+  - name: tfsecExcludeIDs
+    type: string
+    default: ''
+
+stages:
+  - stage: ${{ parameters.envToDeploy }}
+    dependsOn: ${{ parameters.dependsOn }}
+    condition: ${{ parameters.condition }}
+    displayName: "Deploying to ${{ parameters.envToDeploy }}"
+    ${{ if eq(parameters.envToDeploy, 'prd') }}:
+      variables:
+        - group: ngrp-concrete-approver-prd
+    jobs:
+      - job: plan
+        displayName: Terraform Plan
+        steps:
+          - checkout: self
+            path: s/infra
+          - ${{ each value in parameters.checkouts }}:
+            - checkout: ${{ value }}
+
+          - template: ../tasks/terraform-install.yaml
+            parameters:
+              terraformVersion: ${{ parameters.terraformVersion }}
+
+          - template: ../tasks/terraform-fmt.yaml
+            parameters:
+              workingDirectory: ${{ parameters.workingDirectory }}
+
+          - template: ../tasks/terraform-init.yaml
+            parameters:
+              terraformStateServiceConnection: ${{parameters.terraformStateServiceConnection}}
+              backendAzureRmResourceGroupName: ${{parameters.backendAzureRmResourceGroupName}}
+              backendAzureRmStorageAccountName: ${{parameters.backendAzureRmStorageAccountName}}
+              backendAzureRmContainerName: ${{parameters.backendAzureRmContainerName}}
+              backendAzureRmKey: ${{parameters.backendAzureRmKey}}
+              workingDirectory: ${{ parameters.workingDirectory }}
+              
+          - template: ../tasks/terraform-validate.yaml
+            parameters:
+              workingDirectory: ${{ parameters.workingDirectory }}
+
+          - template: ../tasks/tflint-run.yaml
+            parameters:
+              enabled: ${{ parameters.runTests }}
+              workingDirectory: ${{ parameters.workingDirectory }}
+
+          - template: ../tasks/tfsec-run.yaml
+            parameters:
+              enabled: ${{ parameters.runTests }}
+              workingDirectory: ${{ parameters.workingDirectory }}
+              minimumSeverity: ${{ parameters.tfsecMinimumSeverity }}
+              excludeIDs: ${{ parameters.tfsecExcludeIDs }}
+
+          - template: ../tasks/terraform-plan.yaml
+            parameters:
+              environmentServiceNameAzureRM: ${{parameters.environmentServiceNameAzureRM}}
+              workingDirectory: ${{ parameters.workingDirectory }}
+              terraformEnv: ${{ parameters.terraformEnv }}
+
+          - publish: ${{ parameters.workingDirectory }}
+            displayName: "Publish Artifact"
+            artifact: ${{ parameters.envToDeploy }}
+
+      - ${{ if eq( parameters.manualApproval, 'true' ) }}:
+        - template: ../jobs/manual-validation.yaml
+          parameters:
+            dependsOn: plan
+            approvalTimeout: ${{ parameters.approvalTimeout }}
+
+      - job: apply
+        displayName: Terraform Apply
+        ${{ if eq( parameters.manualApproval, 'true' ) }}:
+          dependsOn: validation
+        ${{ else }}:
+          dependsOn: plan
+        steps:
+          - checkout: self
+            path: s/infra
+          - ${{ each value in parameters.checkouts }}:
+            - checkout: ${{ value }}
+            
+          - template: ../tasks/terraform-install.yaml
+            parameters:
+              terraformVersion: ${{ parameters.terraformVersion }}
+          
+          - task: DownloadPipelineArtifact@2
+            displayName: "Download Artifact"
+            inputs:
+              artifactName: ${{ parameters.envToDeploy }}
+              targetPath: ${{ parameters.workingDirectory }}
+          
+          - script: chmod 755 -R ${{ parameters.workingDirectory }}
+            displayName: Set Permission
+
+          - template: ../tasks/terraform-apply.yaml
+            parameters:
+              environmentServiceNameAzureRM: ${{parameters.environmentServiceNameAzureRM}}
+              workingDirectory: ${{ parameters.workingDirectory }}
+              terraformEnv: ${{ parameters.terraformEnv }}

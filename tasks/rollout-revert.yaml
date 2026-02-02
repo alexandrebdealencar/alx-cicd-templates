@@ -1,0 +1,17 @@
+parameters:
+  - name: Namespace
+    type: string
+  - name: AppName
+    type: string
+  - name: AppKind
+    type: string
+    default: 'deployment'
+
+steps:
+  - task: Kubernetes@1
+    displayName: "Undo Deployment"
+    condition: failed()
+    name: rollout_revert
+    inputs:
+      command: rollout
+      arguments: undo -n ${{ parameters.Namespace }} "${{ parameters.AppKind }}/${{ parameters.AppName }}""

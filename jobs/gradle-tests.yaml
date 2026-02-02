@@ -1,0 +1,57 @@
+parameters:
+  - name: jobName
+    type: string
+  - name: dependsOn
+    type: object
+    default: []
+  - name: condition
+    type: string
+    default: succeeded()
+  - name: gradleWrapperFile
+    type: string
+    default: "gradlew"
+  - name: gradleTasks
+    type: string
+  - name: continueOnError
+    type: boolean
+    default: true
+  - name: testName
+    type: string
+  - name: jdkVersionOption
+    type: string
+    default: 1.21
+  - name: envs
+    type: object
+    default: []
+  - name: workingDir
+    type: string
+    default: $(System.DefaultWorkingDirectory)
+
+jobs:
+  - job: ${{ parameters.jobName }}
+    dependsOn: ${{ parameters.dependsOn }}
+    condition: ${{ parameters.condition }}
+    displayName: ${{ parameters.testName }}
+    steps:
+      - template: "../tasks/gradle-task.yaml"
+        parameters:
+          gradleTask: ${{ parameters.gradleTasks }}
+          continueOnError: ${{ parameters.continueOnError }}
+          gradleWrapperFile: ${{ parameters.gradleWrapperFile }}
+          jdkVersionOption: ${{ parameters.jdkVersionOption }}
+          envs:
+              ${{ each env in parameters.envs }}:
+                ${{ env.key }}: ${{ env.value }}
+      
+      - script: |
+          mv ${{ parameters.workingDir }}/build/reports/${{ lower(parameters.testName) }}/main.html \
+            ${{ parameters.workingDir }}/build/reports/${{ lower(parameters.testName) }}/${{ lower(parameters.testName) }}-$(Build.BuildNumber).html
+        displayName: Rename report
+      
+      - publish: ${{ parameters.workingDir }}/build/reports/${{ lower(parameters.testName) }}/${{ lower(parameters.testName) }}-$(Build.BuildNumber).html
+        displayName: Publish ${{ parameters.testName }} Report
+        artifact: ${{ parameters.testName }} Report
+      
+      - bash: exit 1
+        displayName: Fail build if partially successful
+        condition: eq(variables['Agent.JobStatus'], 'SucceededWithIssues')

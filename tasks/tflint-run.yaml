@@ -1,0 +1,23 @@
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: enabled
+    type: boolean
+    default: true
+
+steps:
+  - script: |
+      curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+      tflint --version
+    displayName: "TFLint Install"
+    enabled: ${{ parameters.enabled }}
+  
+  - script: |
+      tflint --init
+      tflint
+    env:
+      ${{ if eq(variables['System.Debug'], true) }}:
+        TFLINT_LOG: debug
+    displayName: "Terraform Lint (tflint)"
+    enabled: ${{ parameters.enabled }}
+    workingDirectory: ${{ parameters.workingDirectory }}

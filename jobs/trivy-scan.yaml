@@ -1,0 +1,76 @@
+parameters:
+  - name: scanDependsOn
+    type: object
+    default: []
+  - name: scanCheckout
+    type: string
+    default: none
+  - name: scanContainerRegistry
+    type: string
+  - name: scanTrivyVersion
+    type: string
+    default: "0.46.0"
+  - name: scanIgnoreUnfixed
+    type: boolean
+    default: true
+  - name: scanRepository
+    type: string
+  - name: scanImage
+    type: string
+  - name: scanTag
+    type: string
+    default: latest
+  - name: scanSeverity
+    type: string
+    default: LOW,MEDIUM,HIGH,CRITICAL
+  - name: scanVulnType
+    type: string
+    default: "os"
+  - name: scanContinueOnError
+    type: boolean
+    default: false
+  - name: scanDBRepository
+    type: string
+    default: "ghcr.io/aquasecurity/trivy-db"
+  
+jobs: 
+  - job: scan
+    pool:
+      vmImage: 'ubuntu-latest'
+    displayName: "Scan Image"
+    dependsOn: ${{ parameters.scanDependsOn }}
+    steps:
+      - checkout: ${{ parameters.scanCheckout }}
+
+      - template: ../tasks/docker-login.yaml
+        parameters:
+          containerRegistry: ${{ parameters.scanContainerRegistry }}
+
+      - script: |
+          wget https://github.com/aquasecurity/trivy/releases/download/v${{ parameters.scanTrivyVersion }}/trivy_${{ parameters.scanTrivyVersion }}_Linux-64bit.deb
+            sudo dpkg -i trivy_${{ parameters.scanTrivyVersion }}_Linux-64bit.deb
+            trivy -v
+        displayName: 'Download and install Trivy'
+
+      - ${{ if eq(parameters.scanIgnoreUnfixed ,true) }}:
+        - script: |
+            trivy image ${{ parameters.scanRepository }}/${{ parameters.scanImage }}:${{ parameters.scanTag }} \
+              --db-repository ${{ parameters.scanDBRepository }} \
+              --no-progress \
+              --severity ${{ parameters.scanSeverity }} \
+              --vuln-type ${{ parameters.scanVulnType }} \
+              --ignore-unfixed \
+              --exit-code 1
+          displayName: "Run Scan"
+          continueOnError: ${{ parameters.scanContinueOnError }}
+
+      - ${{ else }}:
+        - script: |
+            trivy image ${{ parameters.scanRepository }}/${{ parameters.scanImage }}:${{ parameters.scanTag }} \
+              --db-repository ${{ parameters.scanDBRepository }} \
+              --no-progress \
+              --severity ${{ parameters.scanSeverity }} \
+              --vuln-type ${{ parameters.scanVulnType }} \
+              --exit-code 1
+          displayName: "Run Scan "
+          continueOnError: ${{ parameters.scanContinueOnError }}

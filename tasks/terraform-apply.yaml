@@ -1,0 +1,21 @@
+parameters:
+  - name: environmentServiceNameAzureRM
+    type: string
+  - name: workingDirectory
+    type: string
+    default: latest
+  - name: terraformEnv
+    type: object
+
+steps:
+  - task: TerraformTaskV4@4
+    displayName: 'Terraform Apply'
+    inputs:
+      provider: 'azurerm'
+      command: 'apply'
+      commandOptions: '-input=false -compact-warnings tfplan.binary'
+      environmentServiceNameAzureRM: ${{parameters.environmentServiceNameAzureRM}}
+      workingDirectory: ${{ parameters.workingDirectory }}
+    env:
+      ${{ each env in parameters.terraformEnv }}:
+        ${{ env.key }}: ${{ env.value }}

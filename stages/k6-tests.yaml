@@ -1,0 +1,36 @@
+parameters:
+  - name: stageName
+    type: string
+  - name: dependsOn
+    type: object
+    default: []
+  - name: condition
+    type: string
+    default: "succeeded()"
+  - name: displayName
+    type: string
+  - name: k6Version
+    type: string
+    default: v0.41.0
+  - name: scripts
+    type: object
+
+
+stages: 
+  - stage: ${{ parameters.stageName }}
+    dependsOn: ${{ parameters.dependsOn }}
+    condition: ${{ parameters.condition }}
+    displayName: ${{ parameters.displayName }}
+    jobs:
+      - job: DevDeploymentValidation
+        displayName: Run Tests
+        steps:
+          - script: |
+              curl -OL https://github.com/grafana/k6/releases/download/${{ parameters.k6Version }}/k6-${{ parameters.k6Version }}-linux-amd64.tar.gz
+              tar -xzf k6-${{ parameters.k6Version }}-linux-amd64.tar.gz
+              mv k6-${{ parameters.k6Version }}-linux-amd64 k6
+            displayName: Download and Install K6
+          - ${{ each script in parameters.scripts }}:
+            - script: |
+                ./k6/k6 run $(System.DefaultWorkingDirectory)/${{ script.file }} ${{ script.options }}
+              displayName: ${{ script.displayName }}

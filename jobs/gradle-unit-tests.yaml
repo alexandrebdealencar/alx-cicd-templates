@@ -1,0 +1,74 @@
+parameters:
+  - name: jobName
+    type: string
+    default: unit_test
+  - name: dependsOn
+    type: object
+    default: []
+  - name: condition
+    type: string
+    default: succeeded()
+  - name: gradleWrapperFile
+    type: string
+    default: "gradlew"
+  - name: continueOnError
+    type: boolean
+    default: true
+  - name: appName
+    type: string
+  - name: envs
+    type: object
+    default: []
+  - name: workingDir
+    type: string
+    default: $(System.DefaultWorkingDirectory)
+  - name: jacocoTestReport
+    type: string
+    default: "jacocoTestReport"
+  - name: jacocoTestCoverageVerification
+    type: string
+    default: "jacocoTestCoverageVerification"
+  - name: jdkVersionOption
+    type: string
+    default: 1.21
+
+jobs:
+  - job: ${{ parameters.jobName }}
+    dependsOn: ${{ parameters.dependsOn }}
+    condition: ${{ parameters.condition }}
+    displayName: Test and Coverage
+    steps:
+      - task: Gradle@3
+        displayName: Run Test and Coverage
+        continueOnError: ${{ parameters.continueOnError }}
+        inputs:
+          gradleWrapperFile: ${{ parameters.gradleWrapperFile }}
+          tasks: ${{ parameters.jacocoTestReport }}
+          publishJUnitResults: true
+          testRunTitle: ${{ parameters.appName }}
+          jdkVersionOption: ${{ parameters.jdkVersionOption }}
+        env:
+          ${{ each env in parameters.envs }}:
+            ${{ env.key }}: ${{ env.value }}
+
+      - task: Gradle@3
+        displayName: Coverage Check
+        continueOnError: ${{ parameters.continueOnError }}
+        inputs:
+          gradleWrapperFile: ${{ parameters.gradleWrapperFile }}
+          tasks: ${{ parameters.jacocoTestCoverageVerification }}
+          jdkVersionOption: ${{ parameters.jdkVersionOption }}
+        env:
+          ${{ each env in parameters.envs }}:
+            ${{ env.key }}: ${{ env.value }}
+
+      - task: PublishCodeCoverageResults@1
+        displayName: Publish Coverage Report
+        inputs:
+          codeCoverageTool: JaCoCo
+          summaryFileLocation: ${{ parameters.workingDir }}/build/reports/jacoco/test/jacocoTestReport.xml
+          reportDirectory: ${{ parameters.workingDir }}/build/reports/jacoco/test/html
+
+      - bash: exit 1
+        displayName: Fail build if partially successful
+        condition: eq(variables['Agent.JobStatus'], 'SucceededWithIssues')

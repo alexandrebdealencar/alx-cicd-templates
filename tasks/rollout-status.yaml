@@ -1,0 +1,19 @@
+parameters:
+  - name: Namespace
+    type: string
+  - name: AppName
+    type: string
+  - name: AppKind
+    type: string
+    default: 'deployment'
+  - name: RolloutTimeout
+    type: number
+    default: 360
+
+steps:
+  - task: Kubernetes@1
+    displayName: "Checking Deployment Status"
+    name: rollout_status
+    inputs:
+      command: rollout
+      arguments: status -n ${{ parameters.Namespace }} "${{ parameters.AppKind }}/${{ parameters.AppName }}" --timeout="${{ parameters.RolloutTimeout }}s"

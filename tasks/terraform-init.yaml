@@ -1,0 +1,26 @@
+parameters:
+  - name: terraformStateServiceConnection
+    type: string
+  - name: backendAzureRmResourceGroupName
+    type: string
+  - name: backendAzureRmStorageAccountName
+    type: string
+  - name: backendAzureRmContainerName
+    type: string
+  - name: backendAzureRmKey
+    type: string
+  - name: workingDirectory
+    type: string
+
+steps:
+  - task: TerraformTaskV4@4
+    displayName: "Terraform Init"
+    inputs:
+      provider: 'azurerm'
+      command: 'init'
+      backendServiceArm: ${{parameters.terraformStateServiceConnection}}
+      backendAzureRmResourceGroupName: ${{parameters.backendAzureRmResourceGroupName}}
+      backendAzureRmStorageAccountName: ${{parameters.backendAzureRmStorageAccountName}}
+      backendAzureRmContainerName: ${{parameters.backendAzureRmContainerName}}
+      backendAzureRmKey: ${{parameters.backendAzureRmKey}}
+      workingDirectory: ${{ parameters.workingDirectory }}  

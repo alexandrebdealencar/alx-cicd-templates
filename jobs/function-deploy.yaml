@@ -1,0 +1,59 @@
+parameters:
+  - name: jobName
+    type: string
+    default: functionDeploy
+  - name: dependsOn
+    type: object
+    default: []
+  - name: condition
+    type: string
+    default: "succeeded()"
+  - name: displayName
+    type: string
+    default: Function Deploy
+  - name: javaVersion
+    type: string
+    default: 21
+  - name: serviceConnection
+    type: string
+  - name: azureSubscription
+    type: string
+  - name: workingDirectory
+    type: string
+    default: "."
+  - name: envs
+    type: object
+    default: []
+
+
+jobs:
+  - job: ${{ parameters.jobName }}
+    dependsOn: ${{ parameters.dependsOn }}
+    condition: ${{ parameters.condition }}
+    displayName: ${{ parameters.displayName }}
+    steps:
+      - task: JavaToolInstaller@0
+        inputs:
+          versionSpec: ${{ parameters.javaVersion }}
+          jdkArchitectureOption: "x64"
+          jdkSourceOption: "PreInstalled"
+      - task: FuncToolsInstaller@0
+        inputs:
+          version: latest
+      - task: AzureCLI@2
+        displayName: Azure Function Deploy
+        inputs:
+          azureSubscription: ${{ parameters.serviceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            az account set --subscription ${{ parameters.azureSubscription }}
+
+            if [ "${{ parameters.workingDirectory }}" != "." ]; then
+              bash ./gradlew :${{ parameters.workingDirectory }}:azureFunctionsDeploy
+            else
+              bash ./gradlew azureFunctionsDeploy
+            fi
+        env:
+          ${{ each env in parameters.envs }}:
+            ${{ env.key }}: ${{ env.value }}

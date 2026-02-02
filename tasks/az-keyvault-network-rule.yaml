@@ -1,0 +1,23 @@
+parameters:
+  - name: action
+    type: string
+    values:
+    - add
+    - remove
+  - name: azureServiceConnection
+    type: string
+  - name: keyVaultName
+    type: string
+  - name: keyVaultResourceGroup
+    type: string
+     
+steps:
+  - task: AzureCli@2
+    displayName: ${{ parameters.action }} pipeline access rule
+    continueOnError: true
+    inputs:
+      azureSubscription: ${{ parameters.azureServiceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az keyvault network-rule ${{ parameters.action }} -n ${{ parameters.keyVaultName }} --resource-group ${{ parameters.keyVaultResourceGroup }} --ip-address $(curl https://ifconfig.me/)

@@ -1,0 +1,33 @@
+parameters:
+- name: acrOriginName
+  type: string
+- name: imageName
+  type: string
+- name: azureSubscriptionOrigin
+  type: string
+- name: acrDestinations
+  type: object
+  default: []
+
+steps:
+  - task: AzureCLI@1
+    displayName: Get Origin Container Resource ID
+    name: getOriginRegistry
+    inputs:
+      azureSubscription: ${{ parameters.azureSubscriptionOrigin }}
+      scriptLocation: inlineScript
+      inlineScript: |
+        REGISTRYLOCATION=$(az acr show --name ${{ parameters.acrOriginName }} --query id -o tsv)
+        echo "##vso[task.setvariable variable=registryLocation;isOutput=true]$REGISTRYLOCATION"
+  - ${{ each destination in parameters.acrDestinations }}:
+    - task: AzureCLI@1
+      displayName: Copy Docker Image to ${{destination.envName}}
+      inputs:
+        azureSubscription: ${{ destination.subscriptionDestination }}
+        scriptLocation: inlineScript
+        inlineScript: |
+          az acr import \
+            --name ${{ destination.acrDestination }} \
+            --source ${{ parameters.imageName }} \
+            --image ${{ parameters.imageName }} \
+            --registry $(getOriginRegistry.registryLocation)

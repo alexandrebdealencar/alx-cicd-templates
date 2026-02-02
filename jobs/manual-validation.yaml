@@ -1,0 +1,19 @@
+parameters:
+  - name: jobName
+    type: string
+    default: validation
+  - name: dependsOn
+    type: object
+    default: []
+  - name: approvalTimeout
+    type: number
+    default: 1440
+
+jobs:
+  - job: ${{ parameters.jobName }}
+    dependsOn: ${{ parameters.dependsOn }}
+    displayName: "Manual Validation"
+    pool: server
+    steps:
+      - task: ManualValidation@0
+        timeoutInMinutes: ${{ parameters.approvalTimeout }}

@@ -13,7 +13,7 @@ parameters:
     default: Function Deploy
   - name: javaVersion
     type: string
-    default: 17
+    default: 21
   - name: serviceConnection
     type: string
   - name: azureSubscription

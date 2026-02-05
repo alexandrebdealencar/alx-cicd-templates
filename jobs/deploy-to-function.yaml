@@ -70,21 +70,18 @@ jobs:
               keyVaultName: ${{ parameters.deployKeyVaultName }}
               keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
 
-      - task: CmdLine@2
-        displayName: Debug workspace
+      - task: AppSettingsBuilder@1
         inputs:
-          script: |
-            pwd
-            ls -laR
-            cat **/*.yaml
+          file: "${{ parameters.deployArtifactsPath }}/s/${{ parameters.deployArtifactName}}/env.yaml "
+          stage: 'dev'
+          logdir: appsettings
+          forbiddenKeywords: 'test,tests,qa,uat,dev'
 
       - task: replacetokens@5
         displayName: Replace tokens
         inputs:
           rootDirectory: "${{ parameters.deployArtifactsPath }}/s/${{ parameters.deployArtifactName}} "
-          targetFiles: |
-            **/*.yml
-            **/*.yaml
+          targetFiles: "*.json"
           actionOnMissing: continue
           keepToken: true
 

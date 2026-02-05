@@ -93,7 +93,7 @@ jobs:
           azureSubscription: ${{ parameters.serviceConnection }}
           scriptType: bash
           scriptLocation: inlineScript
-          arguments: '${{ parameters.azureSubscription }} ${{ parameters.deployKeyVaultResourceGroup }} ${{ parameters.appName }} env/dev.json'
+          arguments: '${{ parameters.azureSubscription }} ${{ parameters.deployKeyVaultResourceGroup }} alx-sftp-function env/dev.json'
           inlineScript: |
             az account set --subscription $1
                 

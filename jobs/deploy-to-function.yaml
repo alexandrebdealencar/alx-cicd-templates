@@ -76,6 +76,7 @@ jobs:
           script: |
             pwd
             ls -laR
+            cat **/*.yaml
 
       - task: replacetokens@5
         displayName: Replace tokens

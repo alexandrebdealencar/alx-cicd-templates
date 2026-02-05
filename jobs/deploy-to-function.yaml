@@ -8,8 +8,6 @@ parameters:
   - name: deployCondition
     type: string
     default: "succeeded()"
-  - name: deployEnvironment
-    type: string
   - name: deployAppName
     type: string
   - name: deployArtifactName
@@ -46,7 +44,6 @@ jobs:
   - deployment: ${{ parameters.deployJobName }}
     dependsOn: ${{ parameters.deployDependsOn }}
     condition: ${{ parameters.deployCondition }}
-    environment: ${{ parameters.deployEnvironment }}
     displayName: "Deploy Azure Function App"
     strategy:
       runOnce:

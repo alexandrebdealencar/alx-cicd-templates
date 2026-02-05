@@ -81,7 +81,7 @@ jobs:
       - task: replacetokens@5
         displayName: Replace tokens
         inputs:
-          rootDirectory: "${{ parameters.deployArtifactsPath }}/s/appsettings"
+          rootDirectory: "${{ parameters.deployArtifactsPath }}/s/${{ parameters.deployArtifactName}} "
           targetFiles: |
             **/*.yml
             **/*.yaml

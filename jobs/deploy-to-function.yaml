@@ -82,7 +82,11 @@ jobs:
                 downloadType: specific
                 itemPattern: ${{ parameters.deployArtifactName }}/**
                 downloadPath: ${{ parameters.deployArtifactsPath }}
-
+            
+            - task: CmdLine@2
+              inputs:
+                script: 'pwd && ls -laR'
+            
             - task: replacetokens@5
               displayName: "Replace Values"
               inputs:

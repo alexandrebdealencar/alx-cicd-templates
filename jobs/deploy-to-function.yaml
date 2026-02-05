@@ -87,6 +87,14 @@ jobs:
           actionOnMissing: continue
           keepToken: true
 
+      - task: CmdLine@2
+        displayName: Debug workspace
+        inputs:
+          script: |
+            pwd
+            ls -laR
+            cat **/*.yaml
+      
       - task: JavaToolInstaller@0
         displayName: Install Java
         inputs:

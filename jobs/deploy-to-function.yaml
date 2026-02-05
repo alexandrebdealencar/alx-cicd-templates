@@ -70,13 +70,6 @@ jobs:
               keyVaultName: ${{ parameters.deployKeyVaultName }}
               keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
 
-      - task: DownloadBuildArtifacts@1
-        displayName: Download build artifacts
-        inputs:
-          downloadType: specific
-          itemPattern: ${{ parameters.deployArtifactName }}/**
-          downloadPath: ${{ parameters.deployArtifactsPath }}
-
       - task: CmdLine@2
         displayName: Debug workspace
         inputs:

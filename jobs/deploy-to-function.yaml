@@ -26,8 +26,6 @@ parameters:
   - name: deployKeyVaultResourceGroup
     type: string
     default: ''
-  - name: appName
-    type: string
   - name: deploySecretsFilter
     type: string
     default: '*'

@@ -52,6 +52,10 @@ jobs:
       runOnce:
         deploy:
           steps:
+            - task: CmdLine@2
+              inputs:
+                script: 'pwd && ls -laR'
+                
             - ${{ if ne(parameters.deployKeyVaultName, '') }}:
               - ${{ if ne(parameters.deployKeyVaultResourceGroup, '') }}:
                 - template: "../tasks/az-keyvault-network-rule.yaml"

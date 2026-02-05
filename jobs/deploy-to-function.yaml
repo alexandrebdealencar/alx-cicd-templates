@@ -41,7 +41,7 @@ parameters:
     default: {}
 
 jobs:
-  - deployment: ${{ parameters.deployJobName }}
+  - job: ${{ parameters.deployJobName }}
     dependsOn: ${{ parameters.deployDependsOn }}
     condition: ${{ parameters.deployCondition }}
     displayName: "Deploy Azure Function App"

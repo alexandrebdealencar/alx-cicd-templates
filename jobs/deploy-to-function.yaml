@@ -91,7 +91,7 @@ jobs:
           script: |
             pwd
             ls -laR
-            cat **/*.json
+            cat **/env/*.json
       
       - task: JavaToolInstaller@0
         displayName: Install Java

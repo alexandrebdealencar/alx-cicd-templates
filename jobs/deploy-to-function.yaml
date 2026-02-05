@@ -26,8 +26,6 @@ parameters:
   - name: deployKeyVaultResourceGroup
     type: string
     default: ''
-  - name: resourceGroup
-    type: string
   - name: appName
     type: string
   - name: deploySecretsFilter
@@ -95,17 +93,14 @@ jobs:
           azureSubscription: ${{ parameters.serviceConnection }}
           scriptType: bash
           scriptLocation: inlineScript
-          arguments: '${{ parameters.azureSubscription }} ${{ parameters.resourceGroup }} ${{ parameters.appName }} env/dev.json'
+          arguments: '${{ parameters.azureSubscription }} ${{ parameters.deployKeyVaultResourceGroup }} ${{ parameters.appName }} env/dev.json'
           inlineScript: |
             az account set --subscription $1
                 
             if [ -f "$4" ]; then
               az functionapp config appsettings set -g $2 -n $3 --settings @$4
             fi
-        env:
-          ${{ each env in parameters.envs }}:
-            ${{ env.key }}: ${{ env.value }}
-      
+            
       - task: JavaToolInstaller@0
         displayName: Install Java
         inputs:

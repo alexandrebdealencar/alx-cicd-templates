@@ -85,13 +85,22 @@ jobs:
           logdir: appsettings
           forbiddenKeywords: 'test,tests,qa,uat,dev'
 
-      - task: CmdLine@2
-        displayName: Debug workspace
+      - task: AzureCLI@2
+        displayName: Apply App Settings
         inputs:
-          script: |
-            pwd
-            ls -laR
-            cat **/env/*.json
+          azureSubscription: ${{ parameters.serviceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          arguments: '${{ parameters.azureSubscription }} ${{ parameters.resourceGroup }} ${{ parameters.appName }} env/dev.json'
+          inlineScript: |
+            az account set --subscription $1
+                
+            if [ -f "$4" ]; then
+              az functionapp config appsettings set -g $2 -n $3 --settings @$4
+            fi
+        env:
+          ${{ each env in parameters.envs }}:
+            ${{ env.key }}: ${{ env.value }}
       
       - task: JavaToolInstaller@0
         displayName: Install Java

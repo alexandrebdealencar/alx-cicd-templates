@@ -1,132 +1,127 @@
 parameters:
-  - name: deployJobName
+  - name: jobName
     type: string
-    default: deploy
-  - name: deployDependsOn
+    default: functionDeploy
+  - name: dependsOn
     type: object
     default: []
-  - name: deployCondition
+  - name: condition
     type: string
-    default: "succeeded()"
-  - name: deployEnvironment
+    default: succeeded()
+  - name: displayName
     type: string
-  - name: deployAppName
+    default: Function App Deploy
+  - name: serviceConnection
+    type: string
+  - name: azureSubscription
     type: string
   - name: deployArtifactName
     type: string
-    default: "functionapp"
   - name: deployArtifactsPath
     type: string
-    default: "$(Pipeline.Workspace)"
-  - name: deployAzureServiceConnection
+    default: $(Pipeline.Workspace)
+  - name: deployKeyVaultName
     type: string
     default: ''
   - name: deployKeyVaultResourceGroup
     type: string
     default: ''
-  - name: deployKeyVaultName
-    type: string
-    default: ''
   - name: deploySecretsFilter
     type: string
-    default: "*"
+    default: '*'
   - name: javaVersion
     type: string
-    default: "17"
-  - name: azureSubscription
-    type: string
+    default: '21'
   - name: workingDirectory
     type: string
-    default: "."
+    default: '.'
   - name: envs
     type: object
     default: {}
 
 jobs:
-  - deployment: ${{ parameters.deployJobName }}
-    dependsOn: ${{ parameters.deployDependsOn }}
-    condition: ${{ parameters.deployCondition }}
-    environment: ${{ parameters.deployEnvironment }}
-    displayName: "Deploy Azure Function App"
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-            - task: CmdLine@2
-              inputs:
-                script: 'pwd && ls -laR'
-                
-            - ${{ if ne(parameters.deployKeyVaultName, '') }}:
-              - ${{ if ne(parameters.deployKeyVaultResourceGroup, '') }}:
-                - template: "../tasks/az-keyvault-network-rule.yaml"
-                  parameters:
-                    action: add
-                    azureServiceConnection: ${{ parameters.deployAzureServiceConnection }}
-                    keyVaultName: ${{ parameters.deployKeyVaultName }}
-                    keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
+  - job: ${{ parameters.jobName }}
+    dependsOn: ${{ parameters.dependsOn }}
+    condition: ${{ parameters.condition }}
+    displayName: ${{ parameters.displayName }}
 
-              - task: AzureKeyVault@2
-                displayName: "Getting Variables from Key Vault"
-                inputs:
-                  connectedServiceName: ${{ parameters.deployAzureServiceConnection }}
-                  keyVaultName: ${{ parameters.deployKeyVaultName }}
-                  secretsFilter: ${{ parameters.deploySecretsFilter }}
+    steps:
+      - ${{ if ne(parameters.deployKeyVaultName, '') }}:
+        - ${{ if ne(parameters.deployKeyVaultResourceGroup, '') }}:
+          - template: ../tasks/az-keyvault-network-rule.yaml
+            parameters:
+              action: add
+              azureServiceConnection: ${{ parameters.serviceConnection }}
+              keyVaultName: ${{ parameters.deployKeyVaultName }}
+              keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
 
-              - ${{ if ne(parameters.deployKeyVaultResourceGroup, '') }}:
-                - template: "../tasks/az-keyvault-network-rule.yaml"
-                  parameters:
-                    action: remove
-                    azureServiceConnection: ${{ parameters.deployAzureServiceConnection }}
-                    keyVaultName: ${{ parameters.deployKeyVaultName }}
-                    keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
+        - task: AzureKeyVault@2
+          displayName: Get variables from Key Vault
+          inputs:
+            connectedServiceName: ${{ parameters.serviceConnection }}
+            keyVaultName: ${{ parameters.deployKeyVaultName }}
+            secretsFilter: ${{ parameters.deploySecretsFilter }}
 
-            - task: DownloadBuildArtifacts@1
-              displayName: "Download Build Artifacts"
-              inputs:
-                downloadType: specific
-                itemPattern: ${{ parameters.deployArtifactName }}/**
-                downloadPath: ${{ parameters.deployArtifactsPath }}
-            
-            - task: CmdLine@2
-              inputs:
-                script: 'pwd && ls -laR'
-            
-            - task: replacetokens@5
-              displayName: "Replace Values"
-              inputs:
-                rootDirectory: "${{ parameters.deployArtifactsPath }}/${{ parameters.deployArtifactName }}"
-                targetFiles: "*.yaml"
-                actionOnMissing: continue
-                keepToken: true
+        - ${{ if ne(parameters.deployKeyVaultResourceGroup, '') }}:
+          - template: ../tasks/az-keyvault-network-rule.yaml
+            parameters:
+              action: remove
+              azureServiceConnection: ${{ parameters.serviceConnection }}
+              keyVaultName: ${{ parameters.deployKeyVaultName }}
+              keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
 
-            - task: JavaToolInstaller@0
-              displayName: "Install Java"
-              inputs:
-                versionSpec: ${{ parameters.javaVersion }}
-                jdkArchitectureOption: "x64"
-                jdkSourceOption: "PreInstalled"
+      - task: DownloadBuildArtifacts@1
+        displayName: Download build artifacts
+        inputs:
+          downloadType: specific
+          itemPattern: ${{ parameters.deployArtifactName }}/**
+          downloadPath: ${{ parameters.deployArtifactsPath }}
 
-            - task: FuncToolsInstaller@0
-              displayName: "Install Azure Functions Core Tools"
-              inputs:
-                version: latest
+      - task: CmdLine@2
+        displayName: Debug workspace
+        inputs:
+          script: |
+            pwd
+            ls -laR
 
-            - task: AzureCLI@2
-              displayName: "Deploy Azure Function App"
-              inputs:
-                azureSubscription: ${{ parameters.deployAzureServiceConnection }}
-                scriptType: bash
-                scriptLocation: inlineScript
-                inlineScript: |
-                  az account set --subscription ${{ parameters.azureSubscription }}
+      - task: replacetokens@5
+        displayName: Replace tokens
+        inputs:
+          rootDirectory: "${{ parameters.deployArtifactsPath }}/${{ parameters.deployArtifactName }}"
+          targetFiles: |
+            **/*.yml
+            **/*.yaml
+          actionOnMissing: continue
+          keepToken: true
 
-                  cd "${{ parameters.deployArtifactsPath }}/${{ parameters.deployArtifactName }}"
+      - task: JavaToolInstaller@0
+        displayName: Install Java
+        inputs:
+          versionSpec: ${{ parameters.javaVersion }}
+          jdkArchitectureOption: x64
+          jdkSourceOption: PreInstalled
 
-                  if [ "${{ parameters.workingDirectory }}" != "." ]; then
-                    bash ./gradlew :${{ parameters.workingDirectory }}:azureFunctionsDeploy
-                  else
-                    bash ./gradlew azureFunctionsDeploy
-                  fi
-              env:
-                ${{ each env in parameters.envs }}:
-                  ${{ env.key }}: ${{ env.value }}
+      - task: FuncToolsInstaller@0
+        displayName: Install Azure Functions Core Tools
+        inputs:
+          version: latest
+
+      - task: AzureCLI@2
+        displayName: Deploy Azure Function App
+        inputs:
+          azureSubscription: ${{ parameters.serviceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            set -e
+
+            az account set --subscription ${{ parameters.azureSubscription }}
+
+            if [ "${{ parameters.workingDirectory }}" != "." ]; then
+              ./gradlew :${{ parameters.workingDirectory }}:azureFunctionsDeploy
+            else
+              ./gradlew azureFunctionsDeploy
+            fi
+        env:
+          ${{ each env in parameters.envs }}:
+            ${{ env.key }}: ${{ env.value }}

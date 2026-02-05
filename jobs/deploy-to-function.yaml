@@ -70,6 +70,14 @@ jobs:
               keyVaultName: ${{ parameters.deployKeyVaultName }}
               keyVaultResourceGroup: ${{ parameters.deployKeyVaultResourceGroup }}
 
+      - task: replacetokens@5
+        displayName: Replace tokens
+        inputs:
+          rootDirectory: "${{ parameters.deployArtifactsPath }}/s/${{ parameters.deployArtifactName}} "
+          targetFiles: "*.yaml"
+          actionOnMissing: continue
+          keepToken: true
+
       - task: AppSettingsBuilder@1
         inputs:
           file: "${{ parameters.deployArtifactsPath }}/s/${{ parameters.deployArtifactName}}/env.yaml "
@@ -77,21 +85,13 @@ jobs:
           logdir: appsettings
           forbiddenKeywords: 'test,tests,qa,uat,dev'
 
-      - task: replacetokens@5
-        displayName: Replace tokens
-        inputs:
-          rootDirectory: "${{ parameters.deployArtifactsPath }}/s/${{ parameters.deployArtifactName}} "
-          targetFiles: "*.json"
-          actionOnMissing: continue
-          keepToken: true
-
       - task: CmdLine@2
         displayName: Debug workspace
         inputs:
           script: |
             pwd
             ls -laR
-            cat **/*.yaml
+            cat **/*.json
       
       - task: JavaToolInstaller@0
         displayName: Install Java
